@@ -2,3 +2,7 @@ node_modules/
 __pycache__/
 *.pyc
 .env
+dist/
+venv/
+.venv/
+*.egg-info/
