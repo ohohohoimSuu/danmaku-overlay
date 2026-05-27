@@ -1,6 +1,9 @@
 import json
 import base64
+import logging
 import httpx
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_WRAPPER = """{system_prompt}
 
@@ -61,10 +64,21 @@ class MimoClient:
             )
             response.raise_for_status()
             data = response.json()
-            self.consecutive_failures = 0
-            return self._parse_response(data)
+            result = self._parse_response(data)
+            if result:
+                self.consecutive_failures = 0
+            return result
 
-        except Exception:
+        except httpx.HTTPStatusError as e:
+            logger.warning("MiMo API HTTP error: %s %s", e.response.status_code, e.response.text[:200])
+            self.consecutive_failures += 1
+            return []
+        except httpx.RequestError as e:
+            logger.warning("MiMo API request failed: %s", e)
+            self.consecutive_failures += 1
+            return []
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("MiMo API response parse error: %s", e)
             self.consecutive_failures += 1
             return []
 
@@ -72,17 +86,16 @@ class MimoClient:
         """Extract danmaku list from API response."""
         try:
             content = data["choices"][0]["message"]["content"]
-            # Strip markdown code fences if present
             content = content.strip()
             if content.startswith("```"):
-                content = content.split("\n", 1)[1]
-                if content.endswith("```"):
-                    content = content[:-3]
+                lines = content.split("\n")
+                content = "\n".join(lines[1:]) if len(lines) > 1 else ""
+                if content.rstrip().endswith("```"):
+                    content = content.rstrip()[:-3]
 
             parsed = json.loads(content)
             return parsed.get("danmaku", [])
         except (KeyError, json.JSONDecodeError, IndexError):
-            # Fallback: treat entire content as one danmaku
             try:
                 text = data["choices"][0]["message"]["content"]
                 return [text.strip()] if text.strip() else []
@@ -92,3 +105,7 @@ class MimoClient:
     def should_throttle(self):
         """Return True if we've had too many consecutive failures."""
         return self.consecutive_failures >= 3
+
+    def close(self):
+        """Release the underlying HTTP client connections."""
+        self._client.close()
