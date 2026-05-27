@@ -31,6 +31,9 @@ class ScreenCapture:
 
     def has_changed(self, current_jpeg):
         """Compare current frame against previous. True if significant change."""
+        if current_jpeg is None:
+            return False
+
         current = self.get_pil_image(current_jpeg)
         if self._prev_frame is None:
             self._prev_frame = current
@@ -48,5 +51,7 @@ class ScreenCapture:
         total_pixels = thumb_size[0] * thumb_size[1]
         ratio = changed_pixels / total_pixels
 
-        self._prev_frame = current
-        return ratio >= self.diff_threshold
+        if ratio >= self.diff_threshold:
+            self._prev_frame = current
+            return True
+        return False
