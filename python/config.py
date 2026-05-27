@@ -20,10 +20,14 @@ def load_profile(name=None):
     name = name or DEFAULT_PROFILE
     path = PROFILES_DIR / f"{name}.json"
     if not path.exists():
+        print(f"[WARN] Profile '{name}' not found, falling back to '{DEFAULT_PROFILE}'")
         path = PROFILES_DIR / f"{DEFAULT_PROFILE}.json"
 
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    if "system_prompt" not in data:
+        raise ValueError(f"Profile '{path.stem}' is missing required field: system_prompt")
 
     return {
         "name": data.get("name", name),
@@ -49,4 +53,5 @@ def get_api_key():
 
 
 def get_api_base():
+    """Get MiMo API base URL from environment or default."""
     return os.environ.get("MIMO_API_BASE", "https://api.xiaomi.com/v1")
