@@ -1,11 +1,41 @@
 {
   "name": "danmaku-overlay",
   "version": "1.0.0",
+  "description": "AI 弹幕覆盖层 — 实时分析游戏画面并显示直播风格弹幕",
+  "author": "ohohohoimSuu",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:dir": "electron-builder --dir"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.danmaku.overlay",
+    "productName": "DanmakuOverlay",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "../python",
+        "to": "python",
+        "filter": [
+          "**/*",
+          "!__pycache__",
+          "!*.pyc"
+        ]
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "artifactName": "DanmakuOverlay.${ext}"
+    },
+    "portable": {
+      "artifactName": "DanmakuOverlay.exe"
+    }
   }
 }
