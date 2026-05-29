@@ -1,4 +1,4 @@
-const TRACK_COUNT = 5;
+const TRACK_COUNT = 20;
 const SPEED_MIN = 8;
 const SPEED_MAX = 12;
 
@@ -36,7 +36,7 @@ function spawnDanmaku(text, trackIndex) {
   el.className = `danmaku-item danmaku-color-${trackIndex % 5}`;
   el.textContent = text;
 
-  const trackHeight = window.innerHeight / TRACK_COUNT;
+  const trackHeight = (window.innerHeight * 0.5) / TRACK_COUNT;
   const top = trackIndex * trackHeight + (trackHeight - 30) * Math.random();
   el.style.top = `${top}px`;
   el.style.left = "100%";

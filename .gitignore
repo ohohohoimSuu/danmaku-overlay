@@ -2,7 +2,12 @@ node_modules/
 __pycache__/
 *.pyc
 .env
+key.txt
+api-config.json
 dist/
+build/
+*.spec
 venv/
 .venv/
 *.egg-info/
+*.asar

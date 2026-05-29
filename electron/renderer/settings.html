@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>弹幕设置</title>
+<link rel="stylesheet" href="settings.css">
+</head>
+<body>
+
+<div id="app">
+  <nav id="sidebar">
+    <h2>弹幕设置</h2>
+    <ul id="nav-list">
+      <li class="nav-item active" data-tab="stats">📊 详情</li>
+      <li class="nav-item" data-tab="api">⚙️ API 设置</li>
+      <li class="nav-item" data-tab="display">💬 显示设置</li>
+      <li class="nav-item" data-tab="profile">🎭 弹幕人格</li>
+    </ul>
+  </nav>
+
+  <main id="editor">
+    <!-- Stats Panel -->
+    <div id="panel-stats" class="panel">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">运行时间</div>
+          <div class="stat-value" id="stat-uptime">00:00:00</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">弹幕数量</div>
+          <div class="stat-value" id="stat-danmaku">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Token 消耗</div>
+          <div class="stat-value" id="stat-tokens">0</div>
+        </div>
+      </div>
+      <p class="stats-hint">数据来自本次会话，关闭后重置</p>
+    </div>
+
+    <!-- API Panel -->
+    <div id="panel-api" class="panel hidden">
+      <div class="field">
+        <label>API Key <span class="hint">（你的 MiMo / OpenAI 兼容 API 密钥）</span></label>
+        <input type="password" id="api-key" placeholder="sk-...">
+      </div>
+      <div class="field">
+        <label>API Base URL <span class="hint">（API 服务地址）</span></label>
+        <input type="text" id="api-base" placeholder="https://token-plan-cn.xiaomimimo.com/v1">
+      </div>
+      <div class="actions">
+        <button type="button" id="btn-api-save" class="btn-primary">保存并重启后端</button>
+        <span id="api-msg"></span>
+      </div>
+    </div>
+
+    <!-- Display Panel -->
+    <div id="panel-display" class="panel hidden">
+      <div class="field">
+        <label>屏幕同时显示弹幕数 <span class="hint">（<span id="display-value">8</span> 条）</span></label>
+        <input type="range" id="display-max-on-screen" min="1" max="20" value="8" step="1">
+        <div class="range-labels">
+          <span>1</span>
+          <span>5</span>
+          <span>10</span>
+          <span>15</span>
+          <span>20</span>
+        </div>
+      </div>
+      <p class="stats-hint">控制屏幕上同时出现的弹幕密度，保存后重启后端生效</p>
+      <div class="actions">
+        <button type="button" id="btn-display-save" class="btn-primary">保存并重启后端</button>
+        <span id="display-msg"></span>
+      </div>
+    </div>
+
+    <!-- Profile Panel -->
+    <div id="panel-profile" class="panel hidden">
+      <div id="profile-sidebar">
+        <ul id="profile-list"></ul>
+      </div>
+      <div id="profile-editor-area">
+        <div id="empty-state">← 选择一个配置开始编辑</div>
+
+        <form id="profile-form" style="display:none">
+          <div class="field">
+            <label>名称</label>
+            <input type="text" id="field-name" readonly>
+          </div>
+
+          <div class="field">
+            <label>AI 提示词 <span class="hint">（定义弹幕风格和规则）</span></label>
+            <textarea id="field-prompt" rows="5"></textarea>
+          </div>
+
+          <div class="field">
+            <label>每次最大弹幕数</label>
+            <input type="number" id="field-max" min="1" max="10">
+          </div>
+
+          <div class="field">
+            <label>创意度：<span id="temp-value">1.0</span></label>
+            <input type="range" id="field-temp" min="0" max="2" step="0.1" value="1.0">
+          </div>
+
+          <div class="field">
+            <label>口头禅 <span class="hint">（每个一行 / 回车添加）</span></label>
+            <div id="catchphrase-tags" class="tag-editor">
+              <input type="text" id="catchphrase-input" placeholder="输入口头禅，回车添加">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>关注点 <span class="hint">（每个一行 / 回车添加）</span></label>
+            <div id="focus-tags" class="tag-editor">
+              <input type="text" id="focus-input" placeholder="输入关注点，回车添加">
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="btn-save" class="btn-primary">保存</button>
+            <button type="button" id="btn-reset" class="btn-secondary">取消</button>
+            <span id="save-msg"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="settings.js"></script>
+</body>
+</html>

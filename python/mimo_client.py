@@ -1,4 +1,5 @@
 import json
+import re
 import base64
 import logging
 import httpx
@@ -17,6 +18,7 @@ class MimoClient:
         self.api_base = api_base.rstrip("/")
         self._client = httpx.Client(timeout=30.0)
         self.consecutive_failures = 0
+        self.last_usage = None
 
     def analyze(self, jpeg_bytes, profile):
         """Send image to MiMo V2.5, return list of danmaku strings."""
@@ -59,11 +61,12 @@ class MimoClient:
                     "model": "mimo-v2.5",
                     "messages": messages,
                     "temperature": profile.get("temperature", 0.9),
-                    "max_tokens": 256,
+                    "max_tokens": 1024,
                 },
             )
             response.raise_for_status()
             data = response.json()
+            self.last_usage = data.get("usage") if "usage" in data else None
             result = self._parse_response(data)
             if result:
                 self.consecutive_failures = 0
@@ -94,13 +97,26 @@ class MimoClient:
                     content = content.rstrip()[:-3]
 
             parsed = json.loads(content)
-            return parsed.get("danmaku", [])
+            danmaku_list = parsed.get("danmaku", [])
+            return [d for d in danmaku_list if self._is_valid_danmaku(d)]
         except (KeyError, json.JSONDecodeError, IndexError):
             try:
                 text = data["choices"][0]["message"]["content"]
-                return [text.strip()] if text.strip() else []
+                text = text.strip()
+                if text and self._is_valid_danmaku(text):
+                    return [text]
+                return []
             except (KeyError, IndexError):
                 return []
+
+    @staticmethod
+    def _is_valid_danmaku(text):
+        """Return True if text looks like real danmaku (contains Chinese)."""
+        if not isinstance(text, str):
+            return False
+        if len(text) < 3:
+            return False
+        return bool(re.search(r'[一-鿿]', text))
 
     def should_throttle(self):
         """Return True if we've had too many consecutive failures."""

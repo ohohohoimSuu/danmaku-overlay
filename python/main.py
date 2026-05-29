@@ -10,11 +10,13 @@ Usage:
 """
 
 import asyncio
+import json
 import logging
 import signal
 import sys
+import time
 
-from config import load_profile, list_profiles, get_api_key, get_api_base
+from config import load_profile, list_profiles, get_api_key, get_api_base, get_display_config
 from capture import ScreenCapture
 from mimo_client import MimoClient
 from danmaku_queue import DanmakuQueue
@@ -58,11 +60,26 @@ def main():
     api_base = get_api_base()
     logger.info("API base: %s", api_base)
 
+    # Load display config
+    display_cfg = get_display_config()
+    max_on_screen = display_cfg.get("max_on_screen", 8)
+
     # Create components
     capture = ScreenCapture(fps=2)
-    queue = DanmakuQueue()
+    queue = DanmakuQueue(max_on_screen=max_on_screen)
     ws_server = DanmakuWSServer(queue)
     client = MimoClient(api_key, api_base)
+
+    # Session stats
+    start_time = time.time()
+    stats = {"danmaku_count": 0, "total_tokens": 0}
+
+    def print_stats():
+        uptime = int(time.time() - start_time)
+        print(
+            f"[STATS] {json.dumps(stats)} [UPTIME] {uptime}",
+            flush=True,
+        )
 
     async def capture_loop():
         """Main capture -> analyze -> push loop."""
@@ -87,10 +104,17 @@ def main():
                 danmaku_list = client.analyze(jpeg_bytes, profile)
                 if danmaku_list:
                     queue.push(danmaku_list)
+                    stats["danmaku_count"] += len(danmaku_list)
                     logger.info(
                         "Generated %d danmaku: %s",
                         len(danmaku_list), danmaku_list,
                     )
+
+                if client.last_usage:
+                    stats["total_tokens"] += client.last_usage.get(
+                        "total_tokens", 0
+                    )
+                print_stats()
 
                 # 4. Handle throttling (too many consecutive failures)
                 if client.should_throttle():
