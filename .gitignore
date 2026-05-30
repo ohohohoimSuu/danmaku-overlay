@@ -11,3 +11,4 @@ venv/
 .venv/
 *.egg-info/
 *.asar
+display-config.json
