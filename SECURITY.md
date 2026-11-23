@@ -11,7 +11,7 @@
 在 `DanmakuSettings.bat` 中硬编码了 MiMo API Key：
 
 ```bat
-set "MIMO_API_KEY=tp-crbvsqkfk0ywemopv3ltnamjmzsyrwe99nx7ghwcamyziit9"
+set "MIMO_API_KEY=tp-REDACTED_REVOKED_KEY"
 set "MIMO_API_BASE=https://token-plan-cn.xiaomimimo.com/v1"
 ```
 
