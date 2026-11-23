@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Danmaku Overlay — Live Interactive Web Demo</title>
+  <meta name="description" content="Real-time AI-powered Bilibili-style bullet comment (danmaku) overlay for single-player games. Try the interactive demo in your browser.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">弹</div>
+        <div>
+          <div class="brand-title">
+            Danmaku Overlay
+            <span class="badge badge-demo" id="mode-badge">DEMO MODE · NO KEY NEEDED</span>
+          </div>
+          <p class="brand-sub">Real-time AI vision commentary floating over your game — Electron + Python hybrid desktop app</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="segmented" role="group" aria-label="Danmaku Language">
+          <button class="seg-btn active" data-lang="en">EN</button>
+          <button class="seg-btn" data-lang="zh">中文 B站</button>
+          <button class="seg-btn" data-lang="mix">Mix</button>
+        </div>
+
+        <button class="btn btn-ghost" id="btn-pause" title="Pause or resume scrolling danmaku">
+          <span id="pause-icon">⏸</span> <span id="pause-label">Pause</span>
+        </button>
+
+        <a class="btn btn-outline" href="https://github.com/ohohohoimSuu/danmaku-overlay" target="_blank" rel="noopener noreferrer">
+          GitHub Repo ↗
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Split Workspace -->
+    <main class="workspace">
+      <!-- Left: Game Stage + Danmaku Overlay + Pipeline Inspector -->
+      <section class="stage-column">
+        <!-- Source Switcher Bar -->
+        <div class="source-bar">
+          <div class="source-tabs" role="tablist">
+            <button class="source-tab active" data-source="game" role="tab" aria-selected="true">
+              ⚔️ Interactive Game Stage
+            </button>
+            <button class="source-tab" data-source="screen" role="tab" aria-selected="false">
+              🖥️ Share Real Screen
+            </button>
+            <button class="source-tab" data-source="upload" role="tab" aria-selected="false">
+              🖼️ Upload Screenshot
+            </button>
+          </div>
+
+          <div class="source-right">
+            <label class="toggle-inline" title="Show the 20 collision-avoidance danmaku tracks">
+              <input type="checkbox" id="toggle-tracks">
+              <span>Show 20 Tracks</span>
+            </label>
+            <label class="toggle-inline" title="Automatically play actions in demo mode">
+              <input type="checkbox" id="toggle-autoplay" checked>
+              <span>Auto-Play AI Crowd</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Viewport Frame (16:9 Game Screen + Click-Through Danmaku Layer) -->
+        <div class="viewport-frame" id="viewport-frame">
+          <!-- Layer 1A: Playable Slay-the-Spire Inspired Game Stage -->
+          <div class="source-view active" id="view-game">
+            <canvas id="game-canvas" width="960" height="540" aria-label="Interactive tactical card game preview"></canvas>
+
+            <!-- Playable HUD Overlay at bottom of game stage -->
+            <div class="game-hud" id="game-hud">
+              <div class="hud-top">
+                <div class="hud-relics" id="hud-relics" title="Relics watched by the Slay the Spire persona">
+                  <span class="relic">🔥 Burning Blood</span>
+                  <span class="relic">💎 Lantern</span>
+                  <span class="relic">🎲 Oddly Smooth Stone</span>
+                  <span class="relic" id="turn-badge">Turn 1 · Floor 33</span>
+                </div>
+                <div class="hud-scene-switch">
+                  <button class="mini-btn" id="btn-reset-game">↻ New Battle</button>
+                </div>
+              </div>
+
+              <div class="hud-bottom">
+                <div class="energy-orb" id="energy-orb" title="Remaining Energy">
+                  <span id="energy-text">3/3</span>
+                  <small>ENERGY</small>
+                </div>
+
+                <div class="card-hand" id="card-hand">
+                  <button class="game-card card-attack" data-action="strike">
+                    <span class="card-cost">1</span>
+                    <span class="card-type">ATTACK</span>
+                    <strong class="card-name">Heavy Strike</strong>
+                    <span class="card-desc">Deal 18 DMG</span>
+                  </button>
+                  <button class="game-card card-skill" data-action="defend">
+                    <span class="card-cost">1</span>
+                    <span class="card-type">SKILL</span>
+                    <strong class="card-name">Iron Guard</strong>
+                    <span class="card-desc">Gain 14 Block</span>
+                  </button>
+                  <button class="game-card card-risk" data-action="gamble">
+                    <span class="card-cost">2</span>
+                    <span class="card-type">CURSED</span>
+                    <strong class="card-name">Greedy All-In</strong>
+                    <span class="card-desc">Deal 34 DMG or whiff!</span>
+                  </button>
+                  <button class="game-card card-heal" data-action="potion">
+                    <span class="card-cost">0</span>
+                    <span class="card-type">RELIC</span>
+                    <strong class="card-name">Emergency Sip</strong>
+                    <span class="card-desc">Heal 16 HP · 1 use</span>
+                  </button>
+                </div>
+
+                <button class="end-turn-btn" id="btn-end-turn">
+                  End Turn ▶
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layer 1B: Real Browser Screen Capture (getDisplayMedia) -->
+          <div class="source-view" id="view-screen">
+            <video id="screen-video" autoplay muted playsinline></video>
+            <div class="source-placeholder" id="screen-placeholder">
+              <div class="placeholder-icon">🖥️</div>
+              <h3>Capture Any Window or Game Live</h3>
+              <p>Uses browser screen capture at <strong>2 FPS</strong> with the exact <code>1280px</code> JPEG resize &amp; <code>64×36</code> pixel-diff gate from <code>python/capture.py</code>.</p>
+              <div class="placeholder-actions">
+                <button class="btn btn-primary" id="btn-start-screen">Start Screen Capture</button>
+                <button class="btn btn-ghost hidden" id="btn-stop-screen">Stop Capture</button>
+              </div>
+              <small class="placeholder-note">Works offline in Demo Mode, or enter an OpenAI-compatible Vision API key in <strong>Live API</strong> for real AI analysis of your screen.</small>
+            </div>
+          </div>
+
+          <!-- Layer 1C: Upload Screenshot -->
+          <div class="source-view" id="view-upload">
+            <img id="upload-preview" alt="Uploaded gameplay screenshot" class="hidden">
+            <div class="source-placeholder" id="upload-placeholder">
+              <div class="placeholder-icon">🖼️</div>
+              <h3>Drop Any Game Screenshot</h3>
+              <p>Test how Danmaku Overlay compresses your image (max <code>1280px</code>, JPEG q55), detects frame delta, and floods live reactions.</p>
+              <label class="btn btn-primary file-label">
+                Choose Screenshot
+                <input type="file" id="upload-input" accept="image/*" hidden>
+              </label>
+              <button class="btn btn-ghost hidden" id="btn-reanalyze-upload">Analyze Again</button>
+            </div>
+          </div>
+
+          <!-- Layer 2: 20-Track Guide Overlay (optional visual debugger) -->
+          <div class="track-guides hidden" id="track-guides" aria-hidden="true"></div>
+
+          <!-- Layer 3: Authentic Click-Through Danmaku Layer (top 50% of viewport) -->
+          <div id="danmaku-container" aria-live="polite"></div>
+
+          <!-- Status Banner (mirrors electron/renderer/danmaku.css .status-bar) -->
+          <div id="status-bar" class="status-bar"></div>
+        </div>
+
+        <!-- Quick Manual Bar under Viewport -->
+        <div class="quick-bar">
+          <form class="quick-send" id="quick-send-form">
+            <input type="text" id="quick-danmaku-input" placeholder="Test the 20-track renderer &amp; dedup engine: type a bullet comment and press Enter..." maxlength="60">
+            <button type="submit" class="btn btn-secondary">Launch Comment</button>
+          </form>
+          <button class="btn btn-primary" id="btn-burst">⚡ Trigger AI Crowd Burst</button>
+        </div>
+
+        <!-- Live Engineering Pipeline Inspector -->
+        <div class="pipeline-card">
+          <div class="pipeline-header">
+            <span class="pipeline-title">🔬 Live Architecture Pipeline <small>(mirrors Python backend + Electron overlay)</small></span>
+            <span class="pipeline-status" id="pipeline-status-text">Idle — waiting for frame delta &ge; 3.0%</span>
+          </div>
+
+          <div class="pipeline-flow">
+            <div class="pipe-node" id="pipe-capture">
+              <div class="pipe-label">1. Screen Capture</div>
+              <div class="pipe-value" id="pipe-capture-val">2.0 FPS · 1280px</div>
+              <div class="pipe-sub">JPEG q55 (mss + Pillow)</div>
+            </div>
+
+            <div class="pipe-arrow">→</div>
+
+            <div class="pipe-node pipe-diff-node" id="pipe-diff">
+              <div class="pipe-diff-top">
+                <div>
+                  <div class="pipe-label">2. Frame Diff (64×36)</div>
+                  <div class="pipe-value" id="pipe-diff-val">0.0%</div>
+                </div>
+                <canvas id="diff-canvas" width="64" height="36" title="Live 64×36 pixel diff heatmap"></canvas>
+              </div>
+              <div class="diff-bar-bg"><div class="diff-bar-fill" id="diff-bar-fill"></div></div>
+              <div class="pipe-sub" id="pipe-diff-sub">Threshold: 3.0% (skips idle frames)</div>
+            </div>
+
+            <div class="pipe-arrow">→</div>
+
+            <div class="pipe-node" id="pipe-llm">
+              <div class="pipe-label">3. Vision LLM</div>
+              <div class="pipe-value" id="pipe-llm-val">Demo Crowd</div>
+              <div class="pipe-sub" id="pipe-llm-sub">Persona: Slay the Spire</div>
+            </div>
+
+            <div class="pipe-arrow">→</div>
+
+            <div class="pipe-node" id="pipe-queue">
+              <div class="pipe-label">4. Dedup &amp; 20 Tracks</div>
+              <div class="pipe-value" id="pipe-queue-val">0 / 8 active</div>
+              <div class="pipe-sub" id="pipe-queue-sub">Similarity &gt; 0.7 filtered</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: 4-Tab Control Center (mirrors electron/renderer/settings.html) -->
+      <aside class="control-panel">
+        <nav class="panel-tabs" role="tablist">
+          <button class="panel-tab active" data-tab="persona" role="tab">🎭 Persona</button>
+          <button class="panel-tab" data-tab="stats" role="tab">📊 Stats</button>
+          <button class="panel-tab" data-tab="display" role="tab">💬 Display</button>
+          <button class="panel-tab" data-tab="api" role="tab">⚙️ Live API</button>
+        </nav>
+
+        <div class="panel-body">
+          <!-- TAB 1: Persona / Profile Selector & Editor -->
+          <div class="tab-pane active" id="tab-persona">
+            <p class="pane-intro">Switch viewer personas live — loaded directly from <code>python/profiles/*.json</code>.</p>
+
+            <div class="persona-cards" id="persona-cards">
+              <!-- Populated by app.js -->
+            </div>
+
+            <div class="editor-divider"></div>
+
+            <div class="field">
+              <label for="field-prompt">System Prompt <span class="hint">(sent to Vision LLM)</span></label>
+              <textarea id="field-prompt" rows="4"></textarea>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="field-max">Max / Batch</label>
+                <input type="number" id="field-max" min="1" max="10" value="3">
+              </div>
+              <div class="field">
+                <label for="field-temp">Temperature: <strong id="temp-value">0.9</strong></label>
+                <input type="range" id="field-temp" min="0" max="2" step="0.1" value="0.9">
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Catchphrases <span class="hint">(press Enter to add)</span></label>
+              <div class="tag-editor" id="catchphrase-tags">
+                <input type="text" id="catchphrase-input" placeholder="Add catchphrase...">
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Focus Areas <span class="hint">(visual cues)</span></label>
+              <div class="tag-editor" id="focus-tags">
+                <input type="text" id="focus-input" placeholder="Add focus element...">
+              </div>
+            </div>
+
+            <div class="pane-actions">
+              <button class="btn btn-primary btn-sm" id="btn-save-profile">Apply Profile</button>
+              <button class="btn btn-ghost btn-sm" id="btn-reset-profile">Reset</button>
+              <span class="inline-msg" id="profile-msg"></span>
+            </div>
+          </div>
+
+          <!-- TAB 2: Live Session Stats -->
+          <div class="tab-pane" id="tab-stats">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-label">Session Uptime</div>
+                <div class="stat-value" id="stat-uptime">00:00:00</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Danmaku Sent</div>
+                <div class="stat-value" id="stat-danmaku">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Est. Tokens</div>
+                <div class="stat-value" id="stat-tokens">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Idle Frames Skipped</div>
+                <div class="stat-value" id="stat-skipped">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Duplicates Blocked</div>
+                <div class="stat-value" id="stat-dedup">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">MiMo V2.5 Cost</div>
+                <div class="stat-value accent-green">~¥0.84/h</div>
+              </div>
+            </div>
+
+            <div class="event-log-box">
+              <div class="event-log-title">Recent Pipeline Events</div>
+              <ul class="event-log" id="event-log"></ul>
+            </div>
+          </div>
+
+          <!-- TAB 3: Display Settings -->
+          <div class="tab-pane" id="tab-display">
+            <div class="field">
+              <label for="display-max">Max Concurrent Danmaku: <strong id="display-max-val">8</strong></label>
+              <input type="range" id="display-max" min="1" max="20" step="1" value="8">
+              <div class="range-scale"><span>1</span><span>5</span><span>10</span><span>15</span><span>20</span></div>
+            </div>
+
+            <div class="field">
+              <label for="display-speed">Scroll Duration: <strong id="display-speed-val">8–12s</strong></label>
+              <input type="range" id="display-speed" min="4" max="16" step="1" value="10">
+              <div class="range-scale"><span>Fast (4s)</span><span>Default (10s)</span><span>Slow (16s)</span></div>
+            </div>
+
+            <div class="field">
+              <label for="display-size">Font Size: <strong id="display-size-val">22px</strong></label>
+              <input type="range" id="display-size" min="14" max="32" step="1" value="22">
+              <div class="range-scale"><span>14px</span><span>22px</span><span>32px</span></div>
+            </div>
+
+            <div class="field">
+              <label for="display-opacity">Opacity: <strong id="display-opacity-val">95%</strong></label>
+              <input type="range" id="display-opacity" min="30" max="100" step="5" value="95">
+            </div>
+
+            <div class="field">
+              <label for="display-diff">Frame Diff Threshold: <strong id="display-diff-val">3%</strong></label>
+              <input type="range" id="display-diff" min="1" max="20" step="1" value="3">
+              <p class="field-hint">Lower = reacts to subtle UI changes; higher = skips more frames to save API tokens.</p>
+            </div>
+
+            <div class="pane-actions">
+              <button class="btn btn-ghost btn-sm" id="btn-clear-screen">Clear Active Danmaku</button>
+            </div>
+          </div>
+
+          <!-- TAB 4: Live Vision API Config -->
+          <div class="tab-pane" id="tab-api">
+            <div class="info-callout">
+              <strong>Demo Mode works without any API key.</strong><br>
+              Want to test <em>real</em> live vision commentary? Enter any browser-accessible OpenAI-compatible Vision API key below (stays strictly in your browser tab).
+            </div>
+
+            <div class="field">
+              <label for="api-preset">Quick Provider Preset</label>
+              <select id="api-preset">
+                <option value="mimo">Xiaomi MiMo V2.5 (Default in Desktop App)</option>
+                <option value="openai">OpenAI (gpt-4o-mini)</option>
+                <option value="openrouter">OpenRouter (CORS-friendly)</option>
+                <option value="custom">Custom OpenAI-Compatible Endpoint</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="api-base">API Base URL</label>
+              <input type="text" id="api-base" value="https://token-plan-cn.xiaomimimo.com/v1" placeholder="https://api.openai.com/v1">
+            </div>
+
+            <div class="field">
+              <label for="api-model">Vision Model</label>
+              <input type="text" id="api-model" value="mimo-v2.5" placeholder="mimo-v2.5">
+            </div>
+
+            <div class="field">
+              <label for="api-key">API Key <span class="hint">(kept in memory only)</span></label>
+              <input type="password" id="api-key" placeholder="sk-... or leave blank for Demo Mode">
+            </div>
+
+            <div class="pane-actions">
+              <button class="btn btn-primary btn-sm" id="btn-api-enable">Enable Live API</button>
+              <button class="btn btn-ghost btn-sm" id="btn-api-demo">Use Demo Mode</button>
+              <span class="inline-msg" id="api-msg"></span>
+            </div>
+
+            <p class="field-hint">
+              Note: Some API providers block direct browser CORS requests. If a browser call hits CORS, the desktop Electron + Python app bypasses CORS natively via <code>httpx</code> — and this demo gracefully falls back with a clear notice.
+            </p>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <div>
+        <strong>Danmaku Overlay</strong> · Electron 33 + Python (<code>mss</code>, <code>Pillow</code>, <code>httpx</code>, <code>websockets</code>) · Built by <a href="https://github.com/ohohohoimSuu" target="_blank" rel="noopener noreferrer">@ohohohoimSuu</a>
+      </div>
+      <div>
+        Desktop App: click-through transparent window over real Windows games · <a href="https://github.com/ohohohoimSuu/danmaku-overlay#readme" target="_blank" rel="noopener noreferrer">Setup Guide ↗</a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="profiles.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
